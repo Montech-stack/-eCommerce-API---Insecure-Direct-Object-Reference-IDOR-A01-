@@ -1,0 +1,79 @@
+🛡️ Penetration Test Report: eCommerce Order API
+
+Target: api.ecom-store.com/v1/orders
+
+Scope: API endpoints responsible for fetching customer order details.
+
+1. Executive Summary
+
+This report details a Critical Risk finding stemming from a Broken Access Control (Insecure Direct Object Reference, or IDOR) vulnerability in the core eCommerce API. An authenticated user can bypass authorization checks and view sensitive personal and financial information belonging to other customers simply by manipulating the order_id parameter in a GET request.
+
+Key Findings Identified:
+
+Critical Risk: IDOR allows horizontal privilege escalation to view private order data.
+
+Data Impact: Full customer names, shipping addresses, order contents, and the last four digits of the payment method are exposed.
+
+2. Methodology
+
+Testing focused on authenticated users attempting to access resources (orders) they do not own.
+
+Technique
+
+Objective
+
+Primary Tools Used
+
+IDOR Testing (Order ID)
+
+Test if a standard user can increment/decrement a known ID to view another user's object.
+
+Burp Suite Repeater
+
+Authorization Check Bypass
+
+Test if removing or modifying session headers changes the vulnerability outcome.
+
+Manual Testing
+
+3. Findings Log
+
+3.1. Access Control Findings (A01)
+
+Finding ID
+
+Title
+
+Description
+
+Data Captured / Proof
+
+Risk Level
+
+IDOR-001
+
+Insecure Direct Object Reference (IDOR)
+
+The /orders/{order_id} endpoint fails to validate if the authenticated session (user_id) is the legitimate owner of the requested order (order_id).
+
+Proof: User 'A' sent a GET request for api.ecom-store.com/v1/orders/1005, then changed the ID to 1006 (belonging to User 'B') and received a full 200 OK response with User B's details.
+
+Critical
+
+IDOR-002
+
+Verbose API Error Messages
+
+When attempting to access a non-existent or malformed order ID, the API returns excessively detailed error messages.
+
+Proof: Response: {"error": "Database query failed: Invalid input format for column 'order_id'. Expected integer."}
+
+Low
+
+4. Immediate Remediation Recommendations
+
+Implement Server-Side Authorization Checks (IDOR-001): Every API request must enforce an authorization check. Before retrieving data for order_id, the server must verify: SELECT order_id FROM orders WHERE order_id = requested_id AND user_id = authenticated_user_id. If this query returns no results, the request should be denied with a 403 Forbidden response.
+
+Use Indirect Object References (Best Practice): Consider replacing predictable numeric order_id values with randomly generated, unguessable UUIDs or GUIDs.
+
+Normalize Error Responses (IDOR-002): Configure the API to return generic, non-informative error messages (e.g., 400 Bad Request or 500 Internal Server Error) to prevent information leakage to attackers.
